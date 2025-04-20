@@ -1,7 +1,9 @@
 #include "plant_manager.h"
 #include "motor_control.h"
+#include "bluetooth.h"
 #include <zephyr/kernel.h>
 #include <zephyr/logging/log.h>
+#include <zephyr/bluetooth/gatt.h>
 
 LOG_MODULE_REGISTER(plant_manager);
 
@@ -10,91 +12,125 @@ static struct plant_status *stat;
 
 static struct k_work_delayable plant_work;
 
-// Helper function to handle mode-specific deinitialization
-static void deinit_mode(plant_mode_t mode)
+// Notify BLE clients about watering status change
+static void notify_watering_status(void)
 {
-    switch (mode)
-    {
-    case PLANT_MODE_OFF:
-        break;
-    case PLANT_MODE_MANUAL:
-        motor_control_stop();
-        break;
-    case PLANT_MODE_SCHEDULED:
-        k_work_cancel_delayable(&plant_work);
-        break;
-    default:
-        break;
-    }
+    uint8_t status = stat->watering ? 1 : 0;
+    LOG_INF("Notifying watering status: %u", status);
+    notify_clients(&watering_svc.attrs[WATERING_STATUS_ATTR_POS], &status, sizeof(status));
 }
 
-// Helper function to handle mode-specific initialization
-static void init_mode(plant_mode_t mode)
+// Notify BLE clients about last watered time
+static void notify_last_watered(void)
 {
-    switch (mode)
-    {
-    case PLANT_MODE_OFF:
-        motor_control_stop();
-        break;
-    case PLANT_MODE_MANUAL:
-        motor_run(cfg->enabled);
-        break;
-    case PLANT_MODE_SCHEDULED:
-        LOG_INF("Scheduling watering in %u minutes", cfg->interval_min);
-        k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
-        break;
-    default:
-        break;
-    }
+    uint32_t now = k_uptime_get_32() / 1000; // Convert to seconds
+    uint32_t since_seconds = now - stat->last_watered_seconds;
+    LOG_INF("Notifying last watered: %u seconds ago", since_seconds);
+    notify_clients(&watering_svc.attrs[LAST_WATERED_ATTR_POS], &since_seconds, sizeof(since_seconds));
 }
 
 // Watering task
 static void perform_watering(struct k_work *work)
 {
-    if (stat->watering)
+    if (motor_control_is_running())
+    {
+        LOG_WRN("Watering already in progress");
         return;
+    }
 
-    uint32_t duration_ms = cfg->amount_ml * 100; // Placeholder formula
-    motor_control_start(duration_ms);
+    LOG_INF("Starting watering cycle: %u ml", cfg->amount_ml);
 
-    k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+    // Calculate watering duration (100ms per ml is a placeholder - adjust based on your pump)
+    uint32_t duration_ms = cfg->amount_ml * 100;
+    int err = motor_control_start(duration_ms);
+    if (err)
+    {
+        LOG_ERR("Failed to start watering (err %d)", err);
+        return;
+    }
 
-    stat->last_watered_ms = k_uptime_get_32();
+    // Update status and notify
+    stat->last_watered_seconds = k_uptime_get_32() / 1000; // Convert to seconds
     stat->watering = true;
+    notify_watering_status();
+    notify_last_watered();
+
+    // Schedule next watering if in scheduled mode
+    if (cfg->mode == PLANT_MODE_SCHEDULED)
+    {
+        LOG_INF("Next watering scheduled in %u minutes", cfg->interval_min);
+        k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+    }
 }
 
 // Initialization function
-void plant_manager_init(struct plant_config *config, struct plant_status *status)
+int plant_manager_init(struct plant_config *config, struct plant_status *status)
 {
+    int err;
+
     cfg = config;
     stat = status;
 
-    motor_control_init();
+    err = motor_control_init();
+    if (err)
+    {
+        LOG_ERR("Motor control init failed (err %d)", err);
+        return err;
+    }
+
     k_work_init_delayable(&plant_work, perform_watering);
+
+    // Initialize with OFF mode
+    cfg->mode = PLANT_MODE_OFF;
+    cfg->water_now = false;
+    return 0;
 }
 
 // Periodic tick function
 void plant_manager_tick(void)
 {
     static plant_mode_t last_mode = PLANT_MODE_OFF;
+    static bool was_watering = false;
+    notify_last_watered();
 
-    // Update watering status
-    stat->watering = motor_control_is_running();
-
-    // Handle manual mode
-    if (cfg->mode == PLANT_MODE_MANUAL)
+    // Update watering status based on motor state
+    bool is_watering = motor_control_is_running();
+    if (is_watering != was_watering)
     {
-        motor_run(cfg->enabled);
+        LOG_INF("Watering state changed: %d -> %d", was_watering, is_watering);
+        stat->watering = is_watering;
+        was_watering = is_watering;
+        notify_watering_status();
     }
 
-    // Skip if mode hasn't changed
-    if (cfg->mode == last_mode)
-        return;
-
-    LOG_INF("Switching from mode %d to mode %d", last_mode, cfg->mode);
-
     // Handle mode transition
-    deinit_mode(last_mode);
-    init_mode(cfg->mode);
-    last_mode = cfg->mode;
+    if (cfg->mode != last_mode)
+    {
+        LOG_INF("Switching from mode %d to mode %d", last_mode, cfg->mode);
+
+        // Cancel any scheduled watering
+        k_work_cancel_delayable(&plant_work);
+
+        // Stop motor if running
+        if (stat->watering)
+        {
+            motor_control_stop();
+        }
+
+        // Schedule next watering if in scheduled mode
+        if (cfg->mode == PLANT_MODE_SCHEDULED)
+        {
+            LOG_INF("Scheduling watering in %u minutes", cfg->interval_min);
+            k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+        }
+
+        last_mode = cfg->mode;
+    }
+
+    // Handle manual watering trigger
+    if (cfg->mode == PLANT_MODE_MANUAL && cfg->water_now && !stat->watering)
+    {
+        perform_watering(NULL);
+        cfg->water_now = false; // Clear the trigger after use
+    }
 }

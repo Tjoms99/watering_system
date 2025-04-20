@@ -4,18 +4,38 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-int motor_run(bool enabled);
+/**
+ * @brief Initialize motor control subsystem
+ *
+ * This function:
+ * - Configures the motor GPIO pin
+ * - Initializes the motor timer
+ * - Sets the motor to OFF state
+ *
+ * @return 0 on success, negative error code on failure
+ */
+int motor_control_init(void);
 
-/* Initialize motor GPIO / PWM */
-void motor_control_init(void);
+/**
+ * @brief Start the motor for a specified duration
+ *
+ * @param duration_ms Duration to run the motor in milliseconds
+ * @return 0 on success, negative error code on failure
+ */
+int motor_control_start(uint32_t duration_ms);
 
-/* Start motor for given duration (in ms) */
-void motor_control_start(uint32_t duration_ms);
+/**
+ * @brief Immediately stop the motor
+ *
+ * @return 0 on success, negative error code on failure
+ */
+int motor_control_stop(void);
 
-/* Immediately stop the motor */
-void motor_control_stop(void);
-
-/* Check if motor is running */
+/**
+ * @brief Check if the motor is currently running
+ *
+ * @return true if motor is running, false otherwise
+ */
 bool motor_control_is_running(void);
 
-#endif // MOTOR_CONTROL_H
+#endif /* MOTOR_CONTROL_H */
