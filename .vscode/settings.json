@@ -1,0 +1,10 @@
+{
+    "files.associations": {
+        "bluetooth.h": "c",
+        "plant_common.h": "c",
+        "stdint.h": "c",
+        "plant_manager.h": "c",
+        "kernel.h": "c",
+        "log.h": "c"
+    }
+}
