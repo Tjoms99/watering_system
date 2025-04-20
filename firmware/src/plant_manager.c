@@ -29,6 +29,26 @@ static void notify_last_watered(void)
     notify_clients(&watering_svc.attrs[LAST_WATERED_ATTR_POS], &since_seconds, sizeof(since_seconds));
 }
 
+/**
+ * Compute the pump-on time (in milliseconds) for a given volume (in mL).
+ * Piecewise flow rate:
+ *   • 0 ≤ volume ≤ 100 mL → 25 mL/s
+ *   •       volume > 100 mL → 35 mL/s
+ *
+ * @param volume_ml  Desired volume in milliliters.
+ * @return           Time in milliseconds
+ */
+static uint32_t pump_time_ms(uint32_t volume_ml)
+{
+    const uint32_t FLOW_RATE_LOW = 25;  // mL/s for volumes <= 100mL
+    const uint32_t FLOW_RATE_HIGH = 35; // mL/s for volumes > 100mL
+    const uint32_t THRESHOLD = 100;     // mL threshold between flow rates
+
+    uint32_t rate = (volume_ml <= THRESHOLD) ? FLOW_RATE_LOW : FLOW_RATE_HIGH;
+
+    return (volume_ml * 1000) / rate; // Convert to milliseconds
+}
+
 // Watering task
 static void perform_watering(struct k_work *work)
 {
@@ -40,8 +60,8 @@ static void perform_watering(struct k_work *work)
 
     LOG_INF("Starting watering cycle: %u ml", cfg->amount_ml);
 
-    // Calculate watering duration (100ms per ml is a placeholder - adjust based on your pump)
-    uint32_t duration_ms = cfg->amount_ml * 100;
+    // Calculate watering duration (25ml per second)
+    uint32_t duration_ms = pump_time_ms(cfg->amount_ml);
     int err = motor_control_start(duration_ms);
     if (err)
     {

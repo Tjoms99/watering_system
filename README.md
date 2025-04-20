@@ -2,13 +2,28 @@
 
 A minimalist and elegant Bluetooth-controlled plant watering system, built with:
 
-- Nordic **nRF52840** + **Zephyr (NCS 2.9)**
-- A custom **BLE service** for control + feedback
-- An upcoming **Flutter app** to configure and monitor watering behavior
+- Nordic **nRF52840** + **Zephyr (NCS 2.9)** for the firmware
+- **Flutter** for the mobile application
+- Custom **BLE service** for control + feedback
 
 This project aims to be simple, robust, and flexible — allowing both **manual** and **automated** watering modes.
 
 ---
+
+## 📁 Project Structure
+
+```
+watering_system/
+├── firmware/           # Zephyr firmware for nRF52840
+│   ├── src/           # Source code
+│   ├── prj.conf       # Build configuration
+│   └── ...
+├── app/               # Flutter mobile application
+│   ├── lib/           # Dart source code
+│   ├── pubspec.yaml   # Dependencies
+│   └── ...
+└── README.md          # Project documentation
+```
 
 ## 🧠 System Overview
 
@@ -68,20 +83,62 @@ The nRF52840 advertises a custom **Watering Service** containing these character
 
 ---
 
-## 📱 Flutter App Integration
+## 📱 Flutter App
 
-The Flutter app (planned) will:
+The Flutter app provides a user-friendly interface to:
 
-- Scan and connect to the BLE device
-- Read current watering config
-- Toggle modes and manually trigger watering
-- Receive real-time updates via notifications:
-  - Watering status changes (start/stop)
-  - Time since last watering (updated every second)
+- Scan and connect to the watering device
+- Monitor watering status in real-time
+- Configure watering settings
+- Trigger manual watering
+- View watering history
 
-### Libraries (planned):
+### Features
 
-- [`flutter_blue`](https://pub.dev/packages/flutter_blue) or `flutter_reactive_ble`
-- `provider` or `riverpod` for state management
+- Real-time status updates via BLE notifications
+- Intuitive mode selection
+- Watering schedule configuration
+- Manual watering trigger
+- Last watered time display
+
+### Dependencies
+
+- `flutter_reactive_ble` for BLE communication
+- `provider` for state management
+- `intl` for time formatting
+- `flutter_blue_plus` for enhanced BLE functionality
 
 ---
+
+## 🔧 Development Setup
+
+### Firmware
+
+1. Install Zephyr SDK and NCS
+2. Build and flash firmware:
+   ```bash
+   cd firmware
+   west build -b nrf52840dk_nrf52840
+   west flash
+   ```
+
+### Flutter App
+
+1. Install Flutter SDK
+2. Install dependencies:
+   ```bash
+   cd app
+   flutter pub get
+   ```
+3. Run the app:
+   ```bash
+   flutter run
+   ```
+
+---
+
+## 📚 Documentation
+
+- [Firmware Documentation](firmware/README.md)
+- [App Documentation](app/README.md)
+- [BLE Protocol Documentation](docs/ble_protocol.md)

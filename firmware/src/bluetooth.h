@@ -6,7 +6,24 @@
 // Forward declaration of the GATT service
 extern const struct bt_gatt_service_static watering_svc;
 
-/* Attribute positions in the GATT service */
+/* Attribute positions in the GATT service:
+ * Service layout:
+ * 0: Service declaration
+ * 1: Mode characteristic declaration
+ * 2: Mode value
+ * 3: Interval characteristic declaration
+ * 4: Interval value
+ * 5: Amount characteristic declaration
+ * 6: Amount value
+ * 7: Water Now characteristic declaration
+ * 8: Water Now value
+ * 9: Status characteristic declaration
+ * 10: Status value (WATERING_STATUS_ATTR_POS)
+ * 11: Status CCC
+ * 12: Last Watered characteristic declaration
+ * 13: Last Watered value (LAST_WATERED_ATTR_POS)
+ * 14: Last Watered CCC
+ */
 enum watering_char_position
 {
     WATERING_STATUS_ATTR_POS = 10, // Status characteristic value
