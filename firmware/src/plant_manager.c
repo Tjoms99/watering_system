@@ -79,7 +79,7 @@ static void perform_watering(struct k_work *work)
     if (cfg->mode == PLANT_MODE_SCHEDULED)
     {
         LOG_INF("Next watering scheduled in %u minutes", cfg->interval_min);
-        k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+        k_work_reschedule(&plant_work, K_MINUTES(cfg->interval_min));
     }
 }
 

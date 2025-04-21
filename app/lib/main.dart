@@ -57,14 +57,12 @@ class _MainPageState extends State<MainPage> {
                   : theme.colorScheme.onSurfaceVariant,
             ),
             onPressed: () {
-              if (!bleService.isConnected) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const DevicePage(),
-                  ),
-                );
-              }
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const DevicePage(),
+                ),
+              );
             },
           ),
         ],
@@ -545,7 +543,7 @@ class DevicePage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Select Device'),
+        title: const Text('Bluetooth Settings'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
@@ -556,6 +554,46 @@ class DevicePage extends StatelessWidget {
           if (bleService.isScanning)
             LinearProgressIndicator(
               color: theme.colorScheme.primary,
+            ),
+          if (bleService.isConnected)
+            Card(
+              margin: const EdgeInsets.all(16),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.bluetooth_connected,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'Connected to Device',
+                          style: theme.textTheme.titleMedium,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    FilledButton.icon(
+                      onPressed: () async {
+                        await bleService.disconnect();
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                        }
+                      },
+                      icon: const Icon(Icons.bluetooth_disabled),
+                      label: const Text('Disconnect'),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: theme.colorScheme.error,
+                        minimumSize: const Size(double.infinity, 48),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
           Expanded(
             child: bleService.discoveredDevices.isEmpty
@@ -615,6 +653,9 @@ class DevicePage extends StatelessWidget {
               ),
               label: Text(
                 bleService.isScanning ? 'Stop Scanning' : 'Start Scanning',
+              ),
+              style: FilledButton.styleFrom(
+                minimumSize: const Size(double.infinity, 48),
               ),
             ),
           ),

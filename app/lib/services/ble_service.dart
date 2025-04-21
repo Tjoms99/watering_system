@@ -1,11 +1,10 @@
 import 'dart:async';
-import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_reactive_ble/flutter_reactive_ble.dart';
 import 'package:permission_handler/permission_handler.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/plant_state.dart';
 import 'ble_constants.dart';
+import 'package:flutter/material.dart';
 
 class BleService extends ChangeNotifier {
   final FlutterReactiveBle _ble = FlutterReactiveBle();
@@ -13,8 +12,6 @@ class BleService extends ChangeNotifier {
   StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
   StreamSubscription<List<int>>? _statusSubscription;
   StreamSubscription<List<int>>? _lastWateredSubscription;
-
-  static const String _storedDeviceIdKey = 'last_connected_device_id';
 
   QualifiedCharacteristic? _modeChar;
   QualifiedCharacteristic? _intervalChar;
@@ -388,22 +385,28 @@ class BleService extends ChangeNotifier {
   String? get connectedDeviceId => _connectedDeviceId;
 
   Future<void> disconnect() async {
-    print('Disconnecting from device...');
+    if (_connectedDeviceId == null) return;
+    print('Disconnecting from $_connectedDeviceId...');
+
     try {
-      // Cancel all subscriptions first
-      _connectionSubscription?.cancel();
-      _scanSubscription?.cancel();
-      _statusSubscription?.cancel();
-      _lastWateredSubscription?.cancel();
-
-      // Clear all state
-      _isConnected = false;
+      // 1) Stop any ongoing scans first
+      await _scanSubscription?.cancel();
       _isScanning = false;
-      _isWatering = false;
-      _connectedDeviceId = null;
-      _discoveredDevices = [];
 
-      // Clear characteristic references
+      // 2) Cancel the connection subscription to disconnect
+      await _connectionSubscription?.cancel();
+
+      // 3) Cancel any other characteristic streams
+      await _statusSubscription?.cancel();
+      await _lastWateredSubscription?.cancel();
+    } catch (e) {
+      print('Error during disconnect: $e');
+    } finally {
+      // 4) Clear all state & references
+      _connectedDeviceId = null;
+      _isConnected = false;
+      _isWatering = false;
+      _discoveredDevices.clear();
       _modeChar = null;
       _intervalChar = null;
       _amountChar = null;
@@ -411,7 +414,6 @@ class BleService extends ChangeNotifier {
       _statusChar = null;
       _lastWateredChar = null;
 
-      // Reset state
       _state = PlantState(
         mode: PlantMode.off,
         intervalMinutes: 60,
@@ -421,8 +423,7 @@ class BleService extends ChangeNotifier {
       );
 
       notifyListeners();
-    } catch (e) {
-      print('Error during disconnect: $e');
+      print('Disconnected successfully.');
     }
   }
 

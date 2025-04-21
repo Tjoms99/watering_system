@@ -236,6 +236,25 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
                                    BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
 
 /* --- CONNECTION HANDLING --- */
+static int start_advertising()
+{
+    const struct bt_data ad[] = {
+        BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
+        BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1)};
+
+    const struct bt_data sd[] = {
+        BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_WATERING_SERVICE_VAL)};
+
+    int err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
+    if (err)
+    {
+        LOG_ERR("Advertising start failed (err %d)", err);
+        return err;
+    }
+
+    LOG_INF("Advertising started (device name: \"%s\")", CONFIG_BT_DEVICE_NAME);
+    return 0;
+}
 
 static void connected(struct bt_conn *conn, uint8_t err)
 {
@@ -253,6 +272,7 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
 {
     LOG_INF("Bluetooth disconnected (reason %u)", reason);
     current_conn = NULL;
+    start_advertising();
 }
 
 BT_CONN_CB_DEFINE(conn_cb) = {
@@ -278,20 +298,9 @@ int bluetooth_init(struct plant_config *config, struct plant_status *status)
 
     LOG_INF("Bluetooth initialized");
 
-    const struct bt_data ad[] = {
-        BT_DATA_BYTES(BT_DATA_FLAGS, (BT_LE_AD_GENERAL | BT_LE_AD_NO_BREDR)),
-        BT_DATA(BT_DATA_NAME_COMPLETE, CONFIG_BT_DEVICE_NAME, sizeof(CONFIG_BT_DEVICE_NAME) - 1)};
+    start_advertising();
 
-    const struct bt_data sd[] = {
-        BT_DATA_BYTES(BT_DATA_UUID128_ALL, BT_UUID_WATERING_SERVICE_VAL)};
+    k_sleep(K_SECONDS(10));
 
-    err = bt_le_adv_start(BT_LE_ADV_CONN, ad, ARRAY_SIZE(ad), sd, ARRAY_SIZE(sd));
-    if (err)
-    {
-        LOG_ERR("Advertising start failed (err %d)", err);
-        return err;
-    }
-
-    LOG_INF("Advertising started (device name: \"%s\")", CONFIG_BT_DEVICE_NAME);
     return 0;
 }
