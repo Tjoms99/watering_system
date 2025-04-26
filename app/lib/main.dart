@@ -169,10 +169,7 @@ class _MainPageState extends State<MainPage> {
                               context,
                               icon: Icons.schedule,
                               title: 'Next watering',
-                              subtitle: _formatNextWatering(
-                                bleService.state.intervalMinutes,
-                                bleService.lastWateredSeconds,
-                              ),
+                              subtitle: bleService.state.nextWateringTime,
                             ),
                         ],
                       ),
@@ -485,30 +482,6 @@ String _formatMode(PlantMode mode) {
       return 'Manual';
     case PlantMode.scheduled:
       return 'Scheduled';
-  }
-}
-
-String _formatNextWatering(int intervalMinutes, int lastWateredSeconds) {
-  if (lastWateredSeconds == 0) return 'Not scheduled';
-  final nextWatering = DateTime.now()
-      .add(Duration(minutes: intervalMinutes))
-      .subtract(Duration(seconds: lastWateredSeconds));
-  final now = DateTime.now();
-  if (nextWatering.isBefore(now)) {
-    return 'Now';
-  }
-  final difference = nextWatering.difference(now);
-  if (difference.inDays > 0) {
-    final remainingHours = difference.inHours % 24;
-    return 'In ${difference.inDays} day${difference.inDays > 1 ? 's' : ''} ${remainingHours > 0 ? 'and $remainingHours hour${remainingHours > 1 ? 's' : ''}' : ''}';
-  } else if (difference.inHours > 0) {
-    final remainingMinutes = difference.inMinutes % 60;
-    return 'In ${difference.inHours} hour${difference.inHours > 1 ? 's' : ''} ${remainingMinutes > 0 ? 'and $remainingMinutes minute${remainingMinutes > 1 ? 's' : ''}' : ''}';
-  } else if (difference.inMinutes > 0) {
-    final remainingSeconds = difference.inSeconds % 60;
-    return 'In ${difference.inMinutes} minute${difference.inMinutes > 1 ? 's' : ''} ${remainingSeconds > 0 ? 'and $remainingSeconds second${remainingSeconds > 1 ? 's' : ''}' : ''}';
-  } else {
-    return 'In ${difference.inSeconds} second${difference.inSeconds > 1 ? 's' : ''}';
   }
 }
 

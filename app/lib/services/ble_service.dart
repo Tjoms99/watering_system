@@ -12,6 +12,7 @@ class BleService extends ChangeNotifier {
   StreamSubscription<ConnectionStateUpdate>? _connectionSubscription;
   StreamSubscription<List<int>>? _statusSubscription;
   StreamSubscription<List<int>>? _lastWateredSubscription;
+  StreamSubscription<List<int>>? _nextWateringSubscription;
 
   QualifiedCharacteristic? _modeChar;
   QualifiedCharacteristic? _intervalChar;
@@ -19,6 +20,7 @@ class BleService extends ChangeNotifier {
   QualifiedCharacteristic? _waterNowChar;
   QualifiedCharacteristic? _statusChar;
   QualifiedCharacteristic? _lastWateredChar;
+  QualifiedCharacteristic? _nextWateringChar;
 
   PlantState _state = PlantState(
     mode: PlantMode.off,
@@ -26,6 +28,7 @@ class BleService extends ChangeNotifier {
     amountMl: 100,
     isWatering: false,
     lastWateredSeconds: 0,
+    nextWateringSeconds: 0,
   );
 
   PlantState get state => _state;
@@ -202,6 +205,16 @@ class BleService extends ChangeNotifier {
         _state = _state.copyWith(lastWateredSeconds: _lastWateredSeconds);
       }
 
+      // Read next watering
+      final nextWateringData = await _readCharacteristic(_nextWateringChar);
+      if (nextWateringData.length >= 4) {
+        final nextWatering = nextWateringData[0] |
+            (nextWateringData[1] << 8) |
+            (nextWateringData[2] << 16) |
+            (nextWateringData[3] << 24);
+        _state = _state.copyWith(nextWateringSeconds: nextWatering);
+      }
+
       notifyListeners();
     } catch (e) {
       print('Error reading initial state: $e');
@@ -245,6 +258,11 @@ class BleService extends ChangeNotifier {
       print('Found last watered characteristic');
       _lastWateredChar = qualifiedChar;
       _subscribeToLastWatered();
+    } else if (characteristic.characteristicId ==
+        Uuid.parse(nextWateringCharUuid)) {
+      print('Found next watering characteristic');
+      _nextWateringChar = qualifiedChar;
+      _subscribeToNextWatering();
     }
   }
 
@@ -295,6 +313,30 @@ class BleService extends ChangeNotifier {
     }
   }
 
+  void _subscribeToNextWatering() {
+    _nextWateringSubscription?.cancel();
+    if (_nextWateringChar != null) {
+      print('Subscribing to next watering notifications');
+      _nextWateringSubscription =
+          _ble.subscribeToCharacteristic(_nextWateringChar!).listen((data) {
+        if (data.length >= 4) {
+          // Convert from little-endian to big-endian
+          final nextWatering =
+              data[0] | (data[1] << 8) | (data[2] << 16) | (data[3] << 24);
+          print(
+              'Next watering update received: $nextWatering seconds (raw: $data)');
+          _state = _state.copyWith(nextWateringSeconds: nextWatering);
+          notifyListeners();
+        } else {
+          print(
+              'Warning: Invalid next watering data received (length: ${data.length})');
+        }
+      }, onError: (error) {
+        print('Error in next watering subscription: $error');
+      });
+    }
+  }
+
   // Helper method to update state and notify listeners
   void setState(void Function() fn) {
     fn();
@@ -305,14 +347,17 @@ class BleService extends ChangeNotifier {
     print('Cleaning up subscriptions');
     _statusSubscription?.cancel();
     _lastWateredSubscription?.cancel();
+    _nextWateringSubscription?.cancel();
     _statusSubscription = null;
     _lastWateredSubscription = null;
+    _nextWateringSubscription = null;
     _modeChar = null;
     _intervalChar = null;
     _amountChar = null;
     _waterNowChar = null;
     _statusChar = null;
     _lastWateredChar = null;
+    _nextWateringChar = null;
   }
 
   Future<void> setMode(PlantMode mode) async {
@@ -399,6 +444,7 @@ class BleService extends ChangeNotifier {
       // 3) Cancel any other characteristic streams
       await _statusSubscription?.cancel();
       await _lastWateredSubscription?.cancel();
+      await _nextWateringSubscription?.cancel();
     } catch (e) {
       print('Error during disconnect: $e');
     } finally {
@@ -413,6 +459,7 @@ class BleService extends ChangeNotifier {
       _waterNowChar = null;
       _statusChar = null;
       _lastWateredChar = null;
+      _nextWateringChar = null;
 
       _state = PlantState(
         mode: PlantMode.off,
@@ -420,6 +467,7 @@ class BleService extends ChangeNotifier {
         amountMl: 100,
         isWatering: false,
         lastWateredSeconds: 0,
+        nextWateringSeconds: 0,
       );
 
       notifyListeners();

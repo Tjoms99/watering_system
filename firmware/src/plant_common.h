@@ -34,8 +34,9 @@ struct plant_config
  */
 struct plant_status
 {
-    uint32_t last_watered_seconds; ///< Time since last watering in seconds
-    bool watering;                 ///< Whether watering is currently in progress
+    uint32_t last_watered_seconds;  ///< Time since last watering in seconds
+    uint32_t next_watering_seconds; ///< Time until next scheduled watering in seconds
+    bool watering;                  ///< Whether watering is currently in progress
 };
 
 #endif /* PLANT_COMMON_H */

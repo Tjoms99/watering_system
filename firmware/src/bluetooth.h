@@ -23,11 +23,15 @@ extern const struct bt_gatt_service_static watering_svc;
  * 12: Last Watered characteristic declaration
  * 13: Last Watered value (LAST_WATERED_ATTR_POS)
  * 14: Last Watered CCC
+ * 15: Next Watering characteristic declaration
+ * 16: Next Watering value (NEXT_WATERING_ATTR_POS)
+ * 17: Next Watering CCC
  */
 enum watering_char_position
 {
     WATERING_STATUS_ATTR_POS = 10, // Status characteristic value
-    LAST_WATERED_ATTR_POS = 13     // Last watered characteristic value
+    LAST_WATERED_ATTR_POS = 13,    // Last watered characteristic value
+    NEXT_WATERING_ATTR_POS = 16    // Next watering characteristic value
 };
 
 // Function to notify clients about characteristic changes

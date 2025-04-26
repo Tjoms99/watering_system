@@ -29,6 +29,16 @@ static void notify_last_watered(void)
     notify_clients(&watering_svc.attrs[LAST_WATERED_ATTR_POS], &since_seconds, sizeof(since_seconds));
 }
 
+// Notify BLE clients about next watering time
+static void notify_next_watering(void)
+{
+    uint32_t now = k_uptime_get_32() / 1000; // Convert to seconds
+    uint32_t next_seconds = stat->next_watering_seconds;
+    uint32_t time_until = next_seconds > now ? next_seconds - now : 0;
+    LOG_INF("Notifying next watering: %u seconds from now", time_until);
+    notify_clients(&watering_svc.attrs[NEXT_WATERING_ATTR_POS], &time_until, sizeof(time_until));
+}
+
 /**
  * Compute the pump-on time (in milliseconds) for a given volume (in mL).
  * Piecewise flow rate:
@@ -78,8 +88,11 @@ static void perform_watering(struct k_work *work)
     // Schedule next watering if in scheduled mode
     if (cfg->mode == PLANT_MODE_SCHEDULED)
     {
+        uint32_t now = k_uptime_get_32() / 1000;
+        stat->next_watering_seconds = now + (cfg->interval_min * 60);
         LOG_INF("Next watering scheduled in %u minutes", cfg->interval_min);
         k_work_reschedule(&plant_work, K_MINUTES(cfg->interval_min));
+        notify_next_watering();
     }
 }
 
@@ -111,7 +124,10 @@ void plant_manager_tick(void)
 {
     static plant_mode_t last_mode = PLANT_MODE_OFF;
     static bool was_watering = false;
+    static uint16_t last_interval = 0;
+
     notify_last_watered();
+    notify_next_watering();
 
     // Update watering status based on motor state
     bool is_watering = motor_control_is_running();
@@ -140,11 +156,32 @@ void plant_manager_tick(void)
         // Schedule next watering if in scheduled mode
         if (cfg->mode == PLANT_MODE_SCHEDULED)
         {
+            uint32_t now = k_uptime_get_32() / 1000;
+            stat->next_watering_seconds = now + (cfg->interval_min * 60);
             LOG_INF("Scheduling watering in %u minutes", cfg->interval_min);
             k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+            notify_next_watering();
         }
 
         last_mode = cfg->mode;
+        last_interval = cfg->interval_min;
+    }
+
+    // Handle interval change in scheduled mode
+    if (cfg->mode == PLANT_MODE_SCHEDULED && cfg->interval_min != last_interval)
+    {
+        LOG_INF("Interval changed from %u to %u minutes", last_interval, cfg->interval_min);
+
+        // Cancel current schedule
+        k_work_cancel_delayable(&plant_work);
+
+        // Reschedule with new interval
+        uint32_t now = k_uptime_get_32() / 1000;
+        stat->next_watering_seconds = now + (cfg->interval_min * 60);
+        k_work_schedule(&plant_work, K_MINUTES(cfg->interval_min));
+        notify_next_watering();
+
+        last_interval = cfg->interval_min;
     }
 
     // Handle manual watering trigger

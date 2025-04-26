@@ -50,7 +50,7 @@ int main(void)
     while (1)
     {
         plant_manager_tick();
-        k_sleep(K_SECONDS(1));
+        k_sleep(K_MSEC(500));
     }
 
     return 0;

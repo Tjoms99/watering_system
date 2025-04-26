@@ -19,6 +19,7 @@ LOG_MODULE_REGISTER(watering_service, LOG_LEVEL_INF);
 #define BT_UUID_WATERING_NOW_VAL BT_UUID_128_ENCODE(0xDEAD0004, 0xC634, 0x45D2, 0xA209, 0xC636967B81B2)
 #define BT_UUID_WATERING_STATUS_VAL BT_UUID_128_ENCODE(0xDEAD0005, 0xC634, 0x45D2, 0xA209, 0xC636967B81B2)
 #define BT_UUID_WATERING_LAST_VAL BT_UUID_128_ENCODE(0xDEAD0006, 0xC634, 0x45D2, 0xA209, 0xC636967B81B2)
+#define BT_UUID_WATERING_NEXT_VAL BT_UUID_128_ENCODE(0xDEAD0007, 0xC634, 0x45D2, 0xA209, 0xC636967B81B2)
 
 #define BT_UUID_WATERING_SERVICE BT_UUID_DECLARE_128(BT_UUID_WATERING_SERVICE_VAL)
 #define BT_UUID_WATERING_MODE BT_UUID_DECLARE_128(BT_UUID_WATERING_MODE_VAL)
@@ -27,6 +28,7 @@ LOG_MODULE_REGISTER(watering_service, LOG_LEVEL_INF);
 #define BT_UUID_WATERING_NOW BT_UUID_DECLARE_128(BT_UUID_WATERING_NOW_VAL)
 #define BT_UUID_WATERING_STATUS BT_UUID_DECLARE_128(BT_UUID_WATERING_STATUS_VAL)
 #define BT_UUID_WATERING_LAST BT_UUID_DECLARE_128(BT_UUID_WATERING_LAST_VAL)
+#define BT_UUID_WATERING_NEXT BT_UUID_DECLARE_128(BT_UUID_WATERING_NEXT_VAL)
 
 static struct plant_config *cfg_ptr;
 static struct plant_status *status_ptr;
@@ -71,6 +73,16 @@ static ssize_t read_last_watered(struct bt_conn *conn, const struct bt_gatt_attr
     uint32_t since_seconds = now - status_ptr->last_watered_seconds;
     LOG_INF("Read: Time since last watering = %u seconds", since_seconds);
     return bt_gatt_attr_read(conn, attr, buf, len, offset, &since_seconds, sizeof(since_seconds));
+}
+
+static ssize_t read_next_watered(struct bt_conn *conn, const struct bt_gatt_attr *attr,
+                                 void *buf, uint16_t len, uint16_t offset)
+{
+    uint32_t now = k_uptime_get_32() / 1000; // Convert to seconds
+    uint32_t next_seconds = status_ptr->next_watering_seconds;
+    uint32_t time_until = next_seconds > now ? next_seconds - now : 0;
+    LOG_INF("Read: Time until next watering = %u seconds", time_until);
+    return bt_gatt_attr_read(conn, attr, buf, len, offset, &time_until, sizeof(time_until));
 }
 
 /* --- WRITE CALLBACKS --- */
@@ -149,6 +161,12 @@ static void last_watered_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16
     LOG_INF("Last watered notifications %s", notif_enabled ? "enabled" : "disabled");
 }
 
+static void next_watered_ccc_cfg_changed(const struct bt_gatt_attr *attr, uint16_t value)
+{
+    bool notif_enabled = (value == BT_GATT_CCC_NOTIFY);
+    LOG_INF("Next watered notifications %s", notif_enabled ? "enabled" : "disabled");
+}
+
 void notify_clients(const struct bt_gatt_attr *attr, const void *data, uint16_t len)
 {
     if (!current_conn)
@@ -170,6 +188,11 @@ void notify_clients(const struct bt_gatt_attr *attr, const void *data, uint16_t 
     {
         notify_attr = &watering_svc.attrs[LAST_WATERED_ATTR_POS];
         char_name = "last watered";
+    }
+    else if (attr == &watering_svc.attrs[NEXT_WATERING_ATTR_POS])
+    {
+        notify_attr = &watering_svc.attrs[NEXT_WATERING_ATTR_POS];
+        char_name = "next watering";
     }
 
     if (!notify_attr)
@@ -233,6 +256,14 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
                                               read_last_watered, NULL, NULL),
 
                        BT_GATT_CCC(last_watered_ccc_cfg_changed,
+                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+
+                       BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_NEXT,
+                                              BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
+                                              BT_GATT_PERM_READ,
+                                              read_next_watered, NULL, NULL),
+
+                       BT_GATT_CCC(next_watered_ccc_cfg_changed,
                                    BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
 
 /* --- CONNECTION HANDLING --- */

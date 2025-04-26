@@ -10,6 +10,7 @@ const String amountCharUuid = 'DEAD0003-C634-45D2-A209-C636967B81B2';
 const String waterNowCharUuid = 'DEAD0004-C634-45D2-A209-C636967B81B2';
 const String statusCharUuid = 'DEAD0005-C634-45D2-A209-C636967B81B2';
 const String lastWateredCharUuid = 'DEAD0006-C634-45D2-A209-C636967B81B2';
+const String nextWateringCharUuid = 'DEAD0007-C634-45D2-A209-C636967B81B2';
 
 // Device name prefix for scanning
 const String DEVICE_NAME_PREFIX = 'Watering Service';
