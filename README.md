@@ -58,14 +58,15 @@ watering_system/
 
 The nRF52840 advertises a custom **Watering Service** containing these characteristics:
 
-| Name           | UUID Suffix | R/W        | Type     | Description                             |
-| -------------- | ----------- | ---------- | -------- | --------------------------------------- |
-| `Mode`         | `0001`      | R/W        | `uint8`  | 0 = Off, 1 = Manual, 2 = Scheduled      |
-| `Interval`     | `0002`      | R/W        | `uint16` | Interval between waterings (in minutes) |
-| `Amount`       | `0003`      | R/W        | `uint16` | Watering amount in milliliters          |
-| `Water Now`    | `0004`      | W          | `uint8`  | Write `1` to trigger a manual watering  |
-| `Status`       | `0005`      | R / Notify | `uint8`  | 0 = Not watering, 1 = Watering          |
-| `Last Watered` | `0006`      | R / Notify | `uint32` | Seconds since last watering             |
+| Name            | UUID Suffix | R/W        | Type     | Description                             |
+| --------------- | ----------- | ---------- | -------- | --------------------------------------- |
+| `Mode`          | `0001`      | R/W        | `uint8`  | 0 = Off, 1 = Manual, 2 = Scheduled      |
+| `Interval`      | `0002`      | R/W        | `uint16` | Interval between waterings (in minutes) |
+| `Amount`        | `0003`      | R/W        | `uint16` | Watering amount in milliliters          |
+| `Water Now`     | `0004`      | W          | `uint8`  | Write `1` to trigger a manual watering  |
+| `Status`        | `0005`      | R / Notify | `uint8`  | 0 = Not watering, 1 = Watering          |
+| `Last Watered`  | `0006`      | R / Notify | `uint32` | Seconds since last watering             |
+| `Next Watering` | `0007`      | R / Notify | `uint32` | Seconds to next watering                |
 
 - All characteristics are under a custom 128-bit UUID base
 - Central apps (like the Flutter app) can read/update settings and trigger watering
