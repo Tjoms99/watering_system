@@ -125,7 +125,11 @@ The Flutter app provides a user-friendly interface to:
 > **Tip:** You do **not** need to manually specify overlay files when building. Zephyr will automatically use the overlay and configuration files that match the board name.
 
 #### Nordic boards
-1. Install Zephyr SDK and [NCS](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/installation/install_ncs.html)
+1. Install Zephyr SDK from Nordic.
+
+   Follow the instructions from 
+   [Installing the nRF Connect SDK](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/installation/install_ncs.html).
+
 2. Build and flash firmware:
    
    For nRF52840DK
@@ -141,7 +145,22 @@ The Flutter app provides a user-friendly interface to:
    west build -b xiao_ble/nrf52840/sense
    ```
 #### Texas Instruments boards
-1. Install the downstream Zephyr SDK from [TI repository](https://github.com/TexasInstruments/simplelink-zephyr/)
+1. Install Zephyr SDK from TI.
+
+   Follow the instruction from the 
+   [Zephyr - Getting Started Guide **3.7.0**](https://docs.zephyrproject.org/3.7.0/develop/getting_started/index.html), 
+   but replace the following step
+   ``` bash
+   west init ~/zephyrproject
+   ```
+
+   with TI Zephyr repository
+   ``` bash
+   west init -m https://github.com/TexasInstruments/simplelink-zephyr --mr vv3.7.0-ti-9.10.00_ea zephyrproject
+   ```
+
+   More info is provided in [TI - SimpleLink Academy - Getting started](https://dev.ti.com/tirex/explore/content/simplelink_academy_for_cc23xx_8_40_01_00/_build_simplelink_academy_for_cc23xx_8_40_01_00/source/zephyr/cc23xx_zephyr_getting_started.html)
+
 2. Build and flash firmware:
 
    For LP_EM_CC5340R53
@@ -171,3 +190,5 @@ The Flutter app provides a user-friendly interface to:
 - [App Documentation](app/README.md)
 - [BLE Protocol Documentation](docs/ble_protocol.md)
 - [TI - Zephyr Project Environmet Setup](https://dev.ti.com/tirex/explore/node?node=A__Abn1NAQObvrVu7R5iV50Lw__SIMPLELINK-ACADEMY-CC23XX__gsUPh5j__LATEST)
+- [TI Zephyr repository](https://github.com/TexasInstruments/simplelink-zephyr/)
+- [TI - SimpleLink Academy - Getting started](https://dev.ti.com/tirex/explore/content/simplelink_academy_for_cc23xx_8_40_01_00/_build_simplelink_academy_for_cc23xx_8_40_01_00/source/zephyr/cc23xx_zephyr_getting_started.html)
