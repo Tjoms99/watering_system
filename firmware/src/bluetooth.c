@@ -314,12 +314,13 @@ static void on_security_changed(struct bt_conn *conn, bt_security_t level,
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	if (!err) {
-		LOG_INF("Security changed: %s level %u\n", addr, level);
-	} else {
-		LOG_INF("Security failed: %s level %u err %d\n", addr, level,
-			err);
-	}
+    if (err)
+    {
+        LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
+        return;
+    }
+
+    LOG_INF("Security changed: %s level %u", addr, level);
 }
 
 BT_CONN_CB_DEFINE(conn_cb) = {
@@ -335,7 +336,7 @@ static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	LOG_INF("Passkey for %s: %06u\n", addr, passkey);
+	LOG_INF("Passkey for %s: %06u", addr, passkey);
 }
 
 static void auth_cancel(struct bt_conn *conn)
@@ -344,7 +345,7 @@ static void auth_cancel(struct bt_conn *conn)
 
 	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
 
-	LOG_INF("Pairing cancelled: %s\n", addr);
+	LOG_INF("Pairing cancelled: %s", addr);
 }
 
 static struct bt_conn_auth_cb conn_auth_callbacks = {
@@ -363,8 +364,8 @@ int bluetooth_init(struct plant_config *config, struct plant_status *status)
 
     int err = bt_conn_auth_cb_register(&conn_auth_callbacks);
 	if (err) {
-		LOG_INF("Failed to register authorization callbacks\n");
-		return -1;
+		LOG_INF("Failed to register authorization callbacks");
+		return err;
 	}
 
     err = bt_enable(NULL);
