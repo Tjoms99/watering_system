@@ -1,0 +1,6 @@
+/ {
+	motor_switch: motor_switch {
+		compatible = "power-switch";
+		gpios = <&gpio0 29 GPIO_ACTIVE_HIGH>;
+	};
+};

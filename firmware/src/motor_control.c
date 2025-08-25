@@ -5,11 +5,12 @@
 
 LOG_MODULE_REGISTER(motor_control, LOG_LEVEL_INF);
 
-/* Motor control configuration */
-#define MOTOR_GPIO_NODE DT_NODELABEL(gpio0)
-#define MOTOR_GPIO_PIN 29
+#if !DT_NODE_EXISTS(DT_NODELABEL(motor_switch))
+#error "Overlay for motor output node not properly defined."
+#endif
 
-static const struct device *gpio_dev = DEVICE_DT_GET(MOTOR_GPIO_NODE);
+static const struct gpio_dt_spec motor_switch =
+	GPIO_DT_SPEC_GET_OR(DT_NODELABEL(motor_switch), gpios, {0});
 static struct k_timer motor_timer;
 static bool is_running = false;
 
@@ -21,7 +22,7 @@ static int motor_set_state(bool enabled)
         return 0;
     }
 
-    int err = gpio_pin_set(gpio_dev, MOTOR_GPIO_PIN, enabled);
+    int err = gpio_pin_set_dt(&motor_switch, enabled);
     if (err)
     {
         LOG_ERR("Failed to set motor state (err %d)", err);
@@ -45,7 +46,7 @@ int motor_control_init(void)
     int err;
 
     /* Check if GPIO device is ready */
-    if (!device_is_ready(gpio_dev))
+    if (!gpio_is_ready_dt(&motor_switch))
     {
         LOG_ERR("GPIO device not ready");
         return -ENODEV;
@@ -55,7 +56,7 @@ int motor_control_init(void)
     k_timer_init(&motor_timer, motor_timeout, NULL);
 
     /* Configure motor GPIO */
-    err = gpio_pin_configure(gpio_dev, MOTOR_GPIO_PIN, GPIO_OUTPUT | GPIO_ACTIVE_HIGH);
+    err = gpio_pin_configure_dt(&motor_switch, GPIO_OUTPUT | GPIO_ACTIVE_HIGH);
     if (err)
     {
         LOG_ERR("Failed to configure motor GPIO (err %d)", err);

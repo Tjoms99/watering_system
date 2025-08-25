@@ -2,7 +2,9 @@
 
 A minimalist and elegant Bluetooth-controlled plant watering system, built with:
 
-- Nordic **nRF52840** + **Zephyr (NCS 2.9)** for the firmware
+- Zephyr for the firmware
+   - Nordic **nRF52840** + **Zephyr (NCS 2.9)**
+   - Texas Instruments **CC2340R53** + **Zephyr 3.7 (ti-9.10)**
 - **Flutter** for the mobile application
 - Custom **BLE service** for control + feedback
 
@@ -14,9 +16,13 @@ This project aims to be simple, robust, and flexible — allowing both **manual*
 
 ```
 watering_system/
-├── firmware/           # Zephyr firmware for nRF52840
-│   ├── src/           # Source code
-│   ├── prj.conf       # Build configuration
+├── firmware/               # Zephyr firmware
+│   ├── src/                # Source code
+│   ├── prj.conf            # Build configuration (default)
+│   ├── boards/             # Board-specific .conf and .overlay files
+│   │   ├── <board>.conf
+│   │   ├── <board>.overlay
+│   │   └── ...
 │   └── ...
 ├── app/               # Flutter mobile application
 │   ├── lib/           # Dart source code
@@ -38,7 +44,7 @@ watering_system/
                              │
                              ▼
                     ┌──────────────────────┐
-                    │  nRF52840 Firmware   │
+                    │      Firmware        │
                     │  (BLE Peripheral)    │
                     └────────┬─────────────┘
                              │
@@ -56,7 +62,7 @@ watering_system/
 
 ## 📡 BLE GATT Overview
 
-The nRF52840 advertises a custom **Watering Service** containing these characteristics:
+The wireless MCU advertises a custom **Watering Service** containing these characteristics:
 
 | Name            | UUID Suffix | R/W        | Type     | Description                             |
 | --------------- | ----------- | ---------- | -------- | --------------------------------------- |
@@ -114,13 +120,53 @@ The Flutter app provides a user-friendly interface to:
 ## 🔧 Development Setup
 
 ### Firmware
+> **Note:** Overlay files are used to support different boards. The GPIO pin used to control the motor is defined in the corresponding overlay file for each board.
 
-1. Install Zephyr SDK and NCS
+> **Tip:** You do **not** need to manually specify overlay files when building. Zephyr will automatically use the overlay and configuration files that match the board name.
+
+#### Nordic boards
+1. Install Zephyr SDK from Nordic.
+
+   Follow the instructions from 
+   [Installing the nRF Connect SDK](https://docs.nordicsemi.com/bundle/ncs-latest/page/nrf/installation/install_ncs.html).
+
 2. Build and flash firmware:
+   
+   For nRF52840DK
    ```bash
    cd firmware
-   west build -b nrf52840dk_nrf52840
+   west build -b nrf52840dk/nrf52840
    west flash
+   ```
+
+   For XIAO BLE Sense
+   ```bash
+   cd firmware
+   west build -b xiao_ble/nrf52840/sense
+   ```
+#### Texas Instruments boards
+1. Install Zephyr SDK from TI.
+
+   Follow the instruction from the 
+   [Zephyr - Getting Started Guide **3.7.0**](https://docs.zephyrproject.org/3.7.0/develop/getting_started/index.html), 
+   but replace the following step
+   ``` bash
+   west init ~/zephyrproject
+   ```
+
+   with TI Zephyr repository
+   ``` bash
+   west init -m https://github.com/TexasInstruments/simplelink-zephyr --mr vv3.7.0-ti-9.10.00_ea zephyrproject
+   ```
+
+   More info is provided in [TI - SimpleLink Academy - Getting started](https://dev.ti.com/tirex/explore/content/simplelink_academy_for_cc23xx_8_40_01_00/_build_simplelink_academy_for_cc23xx_8_40_01_00/source/zephyr/cc23xx_zephyr_getting_started.html)
+
+2. Build and flash firmware:
+
+   For LP_EM_CC5340R53
+   ```bash
+   cd firmware
+   west build -b lp_em_cc2340r53
    ```
 
 ### Flutter App
@@ -143,3 +189,6 @@ The Flutter app provides a user-friendly interface to:
 - [Firmware Documentation](firmware/README.md)
 - [App Documentation](app/README.md)
 - [BLE Protocol Documentation](docs/ble_protocol.md)
+- [TI - Zephyr Project Environmet Setup](https://dev.ti.com/tirex/explore/node?node=A__Abn1NAQObvrVu7R5iV50Lw__SIMPLELINK-ACADEMY-CC23XX__gsUPh5j__LATEST)
+- [TI Zephyr repository](https://github.com/TexasInstruments/simplelink-zephyr/)
+- [TI - SimpleLink Academy - Getting started](https://dev.ti.com/tirex/explore/content/simplelink_academy_for_cc23xx_8_40_01_00/_build_simplelink_academy_for_cc23xx_8_40_01_00/source/zephyr/cc23xx_zephyr_getting_started.html)

@@ -8,6 +8,7 @@
 #include <zephyr/bluetooth/uuid.h>
 #include <zephyr/bluetooth/gatt.h>
 #include <zephyr/bluetooth/hci.h>
+#include <zephyr/settings/settings.h>
 
 LOG_MODULE_REGISTER(watering_service, LOG_LEVEL_INF);
 
@@ -224,22 +225,22 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_MODE,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN,
                                               read_mode, write_mode, NULL),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_INTERVAL,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN,
                                               read_interval, write_interval, NULL),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_AMOUNT,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_WRITE,
-                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE,
+                                              BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN,
                                               read_amount, write_amount, NULL),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_NOW,
                                               BT_GATT_CHRC_WRITE,
-                                              BT_GATT_PERM_WRITE,
+                                              BT_GATT_PERM_WRITE_AUTHEN,
                                               NULL, write_water_now, NULL),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_STATUS,
@@ -248,7 +249,7 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
                                               read_status, NULL, NULL),
 
                        BT_GATT_CCC(status_ccc_cfg_changed,
-                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_LAST,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
@@ -256,7 +257,7 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
                                               read_last_watered, NULL, NULL),
 
                        BT_GATT_CCC(last_watered_ccc_cfg_changed,
-                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE),
+                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN),
 
                        BT_GATT_CHARACTERISTIC(BT_UUID_WATERING_NEXT,
                                               BT_GATT_CHRC_READ | BT_GATT_CHRC_NOTIFY,
@@ -264,7 +265,7 @@ BT_GATT_SERVICE_DEFINE(watering_svc,
                                               read_next_watered, NULL, NULL),
 
                        BT_GATT_CCC(next_watered_ccc_cfg_changed,
-                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE));
+                                   BT_GATT_PERM_READ | BT_GATT_PERM_WRITE_AUTHEN));
 
 /* --- CONNECTION HANDLING --- */
 static int start_advertising()
@@ -306,9 +307,50 @@ static void disconnected(struct bt_conn *conn, uint8_t reason)
     start_advertising();
 }
 
+static void on_security_changed(struct bt_conn *conn, bt_security_t level,
+			     enum bt_security_err err)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+    if (err)
+    {
+        LOG_ERR("Security failed: %s level %u err %d", addr, level, err);
+        return;
+    }
+
+    LOG_INF("Security changed: %s level %u", addr, level);
+}
+
 BT_CONN_CB_DEFINE(conn_cb) = {
     .connected = connected,
     .disconnected = disconnected,
+    .security_changed = on_security_changed,
+};
+
+/* --- AUTHENTICATION HANDLING --- */
+static void auth_passkey_display(struct bt_conn *conn, unsigned int passkey)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	LOG_INF("Passkey for %s: %06u", addr, passkey);
+}
+
+static void auth_cancel(struct bt_conn *conn)
+{
+	char addr[BT_ADDR_LE_STR_LEN];
+
+	bt_addr_le_to_str(bt_conn_get_dst(conn), addr, sizeof(addr));
+
+	LOG_INF("Pairing cancelled: %s", addr);
+}
+
+static struct bt_conn_auth_cb conn_auth_callbacks = {
+	.passkey_display = auth_passkey_display,
+	.cancel = auth_cancel,
 };
 
 /* --- INIT FUNCTION --- */
@@ -320,7 +362,13 @@ int bluetooth_init(struct plant_config *config, struct plant_status *status)
 
     LOG_INF("Watering Service starting...");
 
-    int err = bt_enable(NULL);
+    int err = bt_conn_auth_cb_register(&conn_auth_callbacks);
+	if (err) {
+		LOG_INF("Failed to register authorization callbacks");
+		return err;
+	}
+
+    err = bt_enable(NULL);
     if (err)
     {
         LOG_ERR("Bluetooth init failed (err %d)", err);
@@ -328,6 +376,9 @@ int bluetooth_init(struct plant_config *config, struct plant_status *status)
     }
 
     LOG_INF("Bluetooth initialized");
+
+    /* Restore previous bonds after reboot */
+    settings_load();
 
     start_advertising();
 
